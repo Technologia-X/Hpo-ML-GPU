@@ -48,3 +48,22 @@ def prepare_dataset():
 
 trial_num = 0
 
+def get_trial_name(trial: ray.tune.trial.Trial):
+    # Returns the trial number over an iterator variable trail_num
+    global trial_num
+    trial_num = trial_num + 1
+    trial_name = trial.trainable_name + "_" + str(trial_num)
+    return trial_name
+
+class PerfTimer:
+    # High resolution timer for reporting training and inference time.
+    def __init__(self):
+        self.start = None
+        self.duration = None
+
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self
+
+    def __exit__(self, *args):
+        self.duration = time.perf_counter() - self.start
