@@ -12,15 +12,33 @@ import cudf as cd
 
 start_time = time.time()
 
-data = cd.read_csv("data.csv")
-data.drop(['﻿', 'ID', 'Name', 'Age', 'Photo', 'Nationality', 'Flag',
+data = pd.read_csv("data.csv") #Read data file
+
+data.drop(['Unnamed: 0', 'ID', 'Name', 'Age', 'Photo', 'Nationality', 'Flag',
            'Potential', 'Club', 'Club Logo', 'Wage', 'Special',
            'Preferred Foot', 'International Reputation', 'Weak Foot', 
-           'Body Type', 'Real Face', 'Position',
+           'Body Type', 'Real Face',
            'Jersey Number', 'Joined', 'Loaned From', 'Contract Valid Until',
            'Height', 'Weight', 'LS', 'ST', 'RS', 'LW',
            'LF', 'CF', 'RF', 'RW', 'LAM', 'CAM', 'RAM', 'LM', 'LCM', 'CM', 'RCM',
-           'RM', 'LWB', 'LDM', 'CDM', 'RDM', 'RWB', 'LB', 'LCB', 'CB', 'RCB', 'RB',], inplace=True)
+           'RM', 'LWB', 'LDM', 'CDM', 'RDM', 'RWB', 'LB', 'LCB', 'CB', 'RCB', 'RB', 'Release Clause'], axis=1, inplace=True) #Drop unused columns
 
-print(data.head(10))
+data.dropna(inplace=True) #drop na rows
+data.reset_index(inplace=True, drop=True) # reset the index of dataframe
+data['Value'] = data['Value'].str.replace('€','') # remove euro symbol from value (dependent var)
+data['Value'] = data['Value'].replace({'K': '*1e3', 'M': '*1e6'}, regex=True).map(pd.eval).astype(int) #convert into million value and int
+
+pos = pd.get_dummies(data['Position']) #one hot encoding position column
+work_rate = pd.get_dummies(data['Work Rate']) #one hot encoding work_rate column
+
+data = pd.concat([data, pos], axis=1) #Concat pos one hot encoding with original dataframe
+data = pd.concat([data, work_rate], axis=1) #Concat work rate one hot encoding with original dataframe
+
+del data['Position']
+del data['Work Rate'] #Delete both object dtyped columns
+
+#At this point all columns should be either int or float
+
+
 print(data.info(verbose=True))
+
