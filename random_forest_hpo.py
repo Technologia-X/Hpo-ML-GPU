@@ -104,8 +104,8 @@ class BaseTrainTransformer(tune.Trainable):
                 self._dataset.loc[:, self._dataset.columns != self._y_label],
                 self._dataset[self._y_label],
                 train_size=0.8,
-                shuffle=False,
-                random_state=iteration,
+                shuffle=True,
+                random_state=42,
             )
             self.rf_model = curfc(
                 n_estimators=self._model_params["n_estimators"],
@@ -254,19 +254,19 @@ def select_sched_alg(sched_alg):
         print("Unknown Option. Select MedianStop or AsyncHyperBand")
     return sched
 
-num_samples = 50 #times to run the HPO, so 50 here means it will run it 50 * CV_folds
+num_samples = 10 #times to run the HPO, so 10 here means it will run it 10 * CV_folds
 compute = (
     "GPU"  # Can take a CPU value (only for performance comparison. Not recommended)
 )
-CV_folds = 5 # The number of Cross-Validation folds to be performed
+CV_folds = 3 # The number of Cross-Validation folds to be performed
 search_alg = "BayesOpt"  # Options: SkOpt or BayesOpt
 sched_alg = "AsyncHyperBand"  # Options: AsyncHyperBand or MedianStop
 
 # HPO Param ranges
 # NOTE: Depending on the GPU memory we might need to adjust the parameter range for a successful run (I am only using GTX 1060 so I am limited)
-n_estimators_range = (50, 1000)
-max_depth_range = (2, 20)
-max_features_range = (0.1, 0.8)
+n_estimators_range = (500, 2000)
+max_depth_range = (10, 20)
+max_features_range = (0.5, 1.0)
 
 # hpo range defined to be pumped into hpo method
 hpo_ranges = {
@@ -280,3 +280,55 @@ ray.init(local_mode=True, num_gpus=1)
 max_concurrent = cupy.cuda.runtime.getDeviceCount()
 
 cdf = prepare_dataset() #prepare dataset 
+
+# for shared access across processes
+data_id = pin_in_object_store(cdf)
+    
+search = build_search_alg(search_alg, hpo_ranges)
+
+sched = select_sched_alg(sched_alg)
+
+exp_name = None
+
+if exp_name is not None:
+    exp_name += exp_name
+else:
+    exp_name = ""
+    exp_name += "{}_{}_CV-{}_{}M_SAMP-{}".format(
+        "RF", compute, CV_folds, int(len(cdf) / 1000000), num_samples
+    )
+
+    exp_name += "_{}".format("Random" if search_alg is None else search_alg)
+
+    if sched_alg is not None:
+        exp_name += "_{}".format(sched_alg)
+
+static_config = {
+    "num_workers": 1,
+}
+
+print("Model HPO running")
+
+analysis = tune.run(
+    WrappedTrainable,
+    name=exp_name,
+    scheduler=sched,
+    search_alg=search,
+    stop={"training_iteration": CV_folds, "is_bad": True,},
+    resources_per_trial={"cpu": 2, "gpu": 1},
+    num_samples=num_samples,
+    checkpoint_at_end=True,
+    keep_checkpoints_num=1,
+    local_dir="./results",
+    trial_name_creator=get_trial_name,
+    checkpoint_score_attr="test_accuracy",
+    config={
+        "n_estimators": tune.randint(n_estimators_range[0], n_estimators_range[1]),
+        "max_depth": tune.randint(max_depth_range[0], max_depth_range[1]),
+        "max_features": tune.loguniform(max_features_range[0], max_features_range[1]),
+    },
+    verbose=2,
+    raise_on_failed_trial=False,
+)
+print("Time taken", time.time() - start_time)
+analysis.dataframe().to_csv("trials.csv", index=False)
