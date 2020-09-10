@@ -67,3 +67,88 @@ class PerfTimer:
 
     def __exit__(self, *args):
         self.duration = time.perf_counter() - self.start
+
+class BaseTrainTransformer(tune.Trainable):
+    @property
+    def static_config(self) -> dict:
+        return getattr(self, "_static_config", {})
+
+    def _setup(self, config: dict):
+
+        self._dataset, self._col_labels, self._y_label = (
+            get_pinned_object(data_id),
+            None,
+            "Value",
+        )
+        
+        self.rf_model = None
+        self._build(config)
+
+    def _build(self, new_config):
+        self._model_params = {
+            "max_depth": int(new_config["max_depth"]),
+            "n_estimators": int(new_config["n_estimators"]),
+            "max_features": float(new_config["max_features"]),
+            "n_bins": 16,  # args.n_bins,
+            "seed": time.time(),
+        }
+        self._global_best_model = None
+        self._global_best_test_accuracy = 0
+
+    def _train(self):
+        iteration = getattr(self, "iteration", 0)
+        # print(self._dataset)
+        if compute == "GPU":
+            # split data
+            X_train, X_test, y_train, y_test = train_test_split(
+                self._dataset.loc[:, self._dataset.columns != self._y_label],
+                self._dataset[self._y_label],
+                train_size=0.8,
+                shuffle=False,
+                random_state=iteration,
+            )
+            self.rf_model = curfc(
+                n_estimators=self._model_params["n_estimators"],
+                max_depth=self._model_params["max_depth"],
+                n_bins=self._model_params["n_bins"],
+                max_features=self._model_params["max_features"],
+            )
+            X_train = X_train.astype('float32')
+            X_test = X_test.astype('float32')
+
+        # train model
+        with PerfTimer() as train_timer:
+            trained_model = self.rf_model.fit(X_train, y_train.astype("float32"))
+        training_time = train_timer.duration
+
+        # evaluate perf
+        with PerfTimer() as inference_timer:
+            test_accuracy = r2_score(y_test.astype("float32"), trained_model.predict(X_test))
+        infer_time = inference_timer.duration
+
+        # update best model [ assumes maximization of perf metric ]
+        if test_accuracy > self._global_best_test_accuracy:
+            self._global_best_test_accuracy = test_accuracy
+            self._global_best_model = trained_model
+
+        return {
+            "test_accuracy": test_accuracy,
+            "train_time": round(training_time, 4),
+            "infer_time": round(infer_time, 4),
+            "is_bad": not math.isfinite(test_accuracy),
+        }
+
+    def _save(self, checkpoint_dir):
+        return {
+            "test_accuracy": self._global_best_test_accuracy,
+        }
+
+    def _restore(self, checkpoint):
+        self._global_best_test_accuracy = checkpoint["test_accuracy"]
+
+    def reset_config(self, new_config):
+        # Rebuild the config dependent stuff
+        del self.rf_model
+        self._build(new_config)
+        self.config = new_config
+        return True
