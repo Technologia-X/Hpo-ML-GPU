@@ -39,6 +39,7 @@ del data['Work Rate'] #Delete both object dtyped columns
 
 #At this point all columns should be either int or float
 
+# Break the data into train and test set
+X_train, X_test, y_train, y_test = train_test_split(data.drop(['Value'], axis=1, inplace=True), data['Value'], train_size=0.8, shuffle=True,random_state=42)
 
-print(data.info(verbose=True))
-
+print(X_train.columns)
