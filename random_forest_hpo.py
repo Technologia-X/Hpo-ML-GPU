@@ -253,3 +253,30 @@ def select_sched_alg(sched_alg):
     else:
         print("Unknown Option. Select MedianStop or AsyncHyperBand")
     return sched
+
+num_samples = 50 #times to run the HPO, so 50 here means it will run it 50 * CV_folds
+compute = (
+    "GPU"  # Can take a CPU value (only for performance comparison. Not recommended)
+)
+CV_folds = 5 # The number of Cross-Validation folds to be performed
+search_alg = "BayesOpt"  # Options: SkOpt or BayesOpt
+sched_alg = "AsyncHyperBand"  # Options: AsyncHyperBand or MedianStop
+
+# HPO Param ranges
+# NOTE: Depending on the GPU memory we might need to adjust the parameter range for a successful run (I am only using GTX 1060 so I am limited)
+n_estimators_range = (50, 1000)
+max_depth_range = (2, 20)
+max_features_range = (0.1, 0.8)
+
+# hpo range defined to be pumped into hpo method
+hpo_ranges = {
+    "n_estimators": n_estimators_range,
+    "max_depth": max_depth_range,
+    "max_features": max_features_range,
+}
+
+ray.init(local_mode=True, num_gpus=1)
+
+max_concurrent = cupy.cuda.runtime.getDeviceCount()
+
+cdf = prepare_dataset() #prepare dataset 
