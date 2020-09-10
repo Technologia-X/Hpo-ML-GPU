@@ -42,4 +42,12 @@ del data['Work Rate'] #Delete both object dtyped columns
 # Break the data into train and test set
 X_train, X_test, y_train, y_test = train_test_split(data.drop(['Value'], axis=1), data['Value'], train_size=0.8, shuffle=True,random_state=42)
 
-print(X_train.columns)
+cuml_model = curfc() # Define random forest regressor model with default settings (no HPO)
+cuml_model.fit(X_train,y_train) # Train the model on training set
+
+preds = cuml_model.predict(X_test) #Predict the test set
+
+# Metrics for accuracy validation
+print(r2_score(y_test, preds))
+print(mean_absolute_error(y_test, preds))
+print(mean_squared_error(y_test, preds))
