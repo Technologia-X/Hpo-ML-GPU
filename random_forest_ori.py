@@ -42,6 +42,9 @@ del data['Work Rate'] #Delete both object dtyped columns
 # Break the data into train and test set
 X_train, X_test, y_train, y_test = train_test_split(data.drop(['Value'], axis=1), data['Value'], train_size=0.8, shuffle=True,random_state=42)
 
+X_train = X_train.astype('float32') # Convert to float32 as rapids cuml requires float32 data type for training
+X_test = X_test.astype('float32')
+
 cuml_model = curfc() # Define random forest regressor model with default settings (no HPO)
 cuml_model.fit(X_train,y_train) # Train the model on training set
 
