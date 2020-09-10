@@ -152,3 +152,68 @@ class BaseTrainTransformer(tune.Trainable):
         self._build(new_config)
         self.config = new_config
         return True
+
+class WrappedTrainable(BaseTrainTransformer):
+    def __init__(self, *args, **kwargs):
+
+        self._static_config = static_config
+
+        super().__init__(*args, **kwargs)
+
+def build_search_alg(search_alg, param_ranges: dict):
+    """
+    Initialize a search algorithm that is selected using 'search_alg'
+    
+    Parameters
+    ----------
+        search_alg   : str; Selecting the search algorithm. Possible values
+                       [BayesOpt, SkOpt]
+        param_ranges : dictionary of parameter ranges over which the search
+                       should be performed
+
+    Returns
+    -------
+        alg : Object of the RayTune search algorithm selected
+    """
+
+    alg = None
+
+    if search_alg == "BayesOpt":
+        from ray.tune.suggest.bayesopt import BayesOptSearch
+
+        alg = BayesOptSearch(
+            param_ranges,
+            max_concurrent=max_concurrent,
+            metric="test_accuracy",
+            mode="max",
+            utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0},
+        )
+
+    elif search_alg == "SkOpt":
+
+        from skopt import Optimizer
+        from skopt.space import Real, Integer
+        from ray.tune.suggest.skopt import SkOptSearch
+
+        opt_params = [
+            Integer(param_ranges["n_estimators"][0], param_ranges["n_estimators"][1]),
+            Integer(param_ranges["max_depth"][0], param_ranges["max_depth"][1]),
+            Real(
+                param_ranges["max_features"][0],
+                param_ranges["max_features"][1],
+                prior="log-uniform",
+            ),
+        ]
+
+        optimizer = Optimizer(opt_params)
+
+        alg = SkOptSearch(
+            optimizer,
+            list(param_ranges.keys()),
+            max_concurrent=max_concurrent,
+            metric="test_accuracy",
+            mode="max",
+        )
+    else:
+        print("Unknown Option. Select BayesOpt or SkOpt")
+    return alg
