@@ -1,2 +1,0 @@
-test_accuracy,train_time,infer_time,is_bad,done,timesteps_total,episodes_total,training_iteration,experiment_id,date,timestamp,time_this_iter_s,time_total_s,pid,hostname,node_ip,time_since_restore,timesteps_since_restore,iterations_since_restore,trial_id,experiment_tag
-0.8389552958641798,39.0456,3.2708,False,False,,,1,c34915adc6a14eb88d57536e7b6053af,2020-09-10_19-40-51,1599738051,42.336623668670654,42.336623668670654,9763,fadil-System-Product-Name,192.168.0.199,42.336623668670654,0,1,60f5cfc2,"2_max_depth=15.987,max_features=0.65602,n_estimators=733.99"

@@ -264,7 +264,7 @@ sched_alg = "AsyncHyperBand"  # Options: AsyncHyperBand or MedianStop
 
 # HPO Param ranges
 # NOTE: Depending on the GPU memory we might need to adjust the parameter range for a successful run (I am only using GTX 1060 so I am limited)
-n_estimators_range = (500, 2000)
+n_estimators_range = (500, 1500)
 max_depth_range = (10, 20)
 max_features_range = (0.5, 1.0)
 
@@ -315,7 +315,7 @@ analysis = tune.run(
     scheduler=sched,
     search_alg=search,
     stop={"training_iteration": CV_folds, "is_bad": True,},
-    resources_per_trial={"cpu": 2, "gpu": 1},
+    resources_per_trial={"cpu": 0, "gpu": 1},
     num_samples=num_samples,
     checkpoint_at_end=True,
     keep_checkpoints_num=1,
