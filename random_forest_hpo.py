@@ -275,7 +275,7 @@ hpo_ranges = {
     "max_features": max_features_range,
 }
 
-ray.init(local_mode=True, num_gpus=1)
+ray.init(memory=11000 * 1024 * 1024, object_store_memory= 500 * 1024 * 1024, driver_object_store_memory= 100 * 1024 * 1024, local_mode=False, num_gpus=1)
 
 max_concurrent = cupy.cuda.runtime.getDeviceCount()
 
